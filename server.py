@@ -1,13 +1,15 @@
 import os
 import sqlite3
 import json
+import uvicorn
 from fastmcp import FastMCP
 from seed_db import init_database
 
-# Initialize database
+# Initialize database schema and records
 init_database()
 
-mcp = FastMCP("Student Gradebook MCP Server")
+# 1. Enable stateless HTTP mode so FastMCP responds directly to Copilot Studio's JSON-RPC POST requests
+mcp = FastMCP("Student Gradebook MCP Server", stateless_http=True)
 DB_PATH = "student_records.db"
 
 @mcp.tool()
@@ -61,7 +63,10 @@ def get_student_transcript(student_name: str) -> str:
     conn.close()
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
+# 2. Expose Starlette ASGI application for uvicorn
+app = mcp.http_app()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    # Streamable HTTP exposes the unified /mcp/ endpoint required by Copilot Studio
-    mcp.run(transport="http", host="0.0.0.0", port=port)
+    # Serve via uvicorn directly
+    uvicorn.run(app, host="0.0.0.0", port=port)
