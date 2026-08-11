@@ -9,7 +9,7 @@ from seed_db import init_database
 init_database()
 
 # 1. Enable stateless HTTP mode so FastMCP responds directly to Copilot Studio's JSON-RPC POST requests
-mcp = FastMCP("Student Gradebook MCP Server", stateless_http=True)
+mcp = FastMCP("Student Gradebook MCP Server")
 DB_PATH = "student_records.db"
 
 @mcp.tool()
@@ -64,7 +64,7 @@ def get_student_transcript(student_name: str) -> str:
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
 # 2. Expose Starlette ASGI application for uvicorn
-app = mcp.http_app()
+app = mcp.http_app(stateless_http=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
