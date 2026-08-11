@@ -4,16 +4,10 @@ import json
 from fastmcp import FastMCP
 from seed_db import init_database
 
-# 1. Initialize SQLite database on startup
+# Initialize database
 init_database()
 
-# 2. Configure FastMCP host and port for cloud deployment
-port = int(os.environ.get("PORT", 8000))
-os.environ["FASTMCP_HOST"] = "0.0.0.0"
-os.environ["FASTMCP_PORT"] = str(port)
-
 mcp = FastMCP("Student Gradebook MCP Server")
-
 DB_PATH = "student_records.db"
 
 @mcp.tool()
@@ -68,4 +62,6 @@ def get_student_transcript(student_name: str) -> str:
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
 if __name__ == "__main__":
-    mcp.run(transport="sse")
+    # Dynamically bind to Render's PORT environment variable or default to 8000
+    port = int(os.environ.get("PORT", 8000))
+    mcp.run(transport="sse", host="0.0.0.0", port=port)
