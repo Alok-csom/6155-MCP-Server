@@ -1,13 +1,22 @@
 import os
 import sqlite3
 import json
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from seed_db import init_database
 
-# Initialize database on application startup
+# 1. Initialize SQLite database on startup
 init_database()
 
-mcp = FastMCP("Student Gradebook MCP Server")
+# 2. Bind port dynamically for Render (defaults to 7860 locally)
+port = int(os.environ.get("PORT", 7860))
+
+# 3. Pass host and port directly into the FastMCP constructor
+mcp = FastMCP(
+    "Student Gradebook MCP Server",
+    host="0.0.0.0",
+    port=port
+)
+
 DB_PATH = "student_records.db"
 
 @mcp.tool()
@@ -62,6 +71,5 @@ def get_student_transcript(student_name: str) -> str:
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
 if __name__ == "__main__":
-    # Render dynamically binds to PORT env var or defaults to 7860
-    port = int(os.environ.get("PORT", 7860))
-    mcp.run(transport="sse", host="0.0.0.0", port=port)
+    # Call run without passing host or port kwargs
+    mcp.run(transport="sse")
