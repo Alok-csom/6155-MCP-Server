@@ -7,15 +7,13 @@ from seed_db import init_database
 # 1. Initialize SQLite database on startup
 init_database()
 
-# 2. Bind port dynamically for Render (defaults to 7860 locally)
+# 2. Set FastMCP network settings via environment variables
 port = int(os.environ.get("PORT", 7860))
+os.environ["FASTMCP_HOST"] = "0.0.0.0"
+os.environ["FASTMCP_PORT"] = str(port)
 
-# 3. Pass host and port directly into the FastMCP constructor
-mcp = FastMCP(
-    "Student Gradebook MCP Server",
-    host="0.0.0.0",
-    port=port
-)
+# 3. Instantiate FastMCP without deprecated kwargs
+mcp = FastMCP("Student Gradebook MCP Server")
 
 DB_PATH = "student_records.db"
 
@@ -71,5 +69,4 @@ def get_student_transcript(student_name: str) -> str:
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
 if __name__ == "__main__":
-    # Call run without passing host or port kwargs
     mcp.run(transport="sse")
