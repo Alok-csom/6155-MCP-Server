@@ -7,12 +7,11 @@ from seed_db import init_database
 # 1. Initialize SQLite database on startup
 init_database()
 
-# 2. Set FastMCP network settings via environment variables
-port = int(os.environ.get("PORT", 7860))
+# 2. Configure FastMCP host and port for cloud deployment
+port = int(os.environ.get("PORT", 8000))
 os.environ["FASTMCP_HOST"] = "0.0.0.0"
 os.environ["FASTMCP_PORT"] = str(port)
 
-# 3. Instantiate FastMCP without deprecated kwargs
 mcp = FastMCP("Student Gradebook MCP Server")
 
 DB_PATH = "student_records.db"
