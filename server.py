@@ -62,6 +62,6 @@ def get_student_transcript(student_name: str) -> str:
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
 if __name__ == "__main__":
-    # Dynamically bind to Render's PORT environment variable or default to 8000
     port = int(os.environ.get("PORT", 8000))
-    mcp.run(transport="sse", host="0.0.0.0", port=port)
+    # Streamable HTTP exposes the unified /mcp/ endpoint required by Copilot Studio
+    mcp.run(transport="http", host="0.0.0.0", port=port)
