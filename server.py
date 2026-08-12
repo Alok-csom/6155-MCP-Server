@@ -64,10 +64,10 @@ def get_student_transcript(student_name: str) -> str:
     conn.close()
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
-# 1. Generate FastMCP ASGI app with stateless HTTP support
+# 1. Generate FastMCP application with stateless HTTP enabled
 mcp_app = mcp.http_app(stateless_http=True)
 
-# 2. Wrap in FastAPI to add explicit CORS headers required by Copilot Studio
+# 2. Wrap in FastAPI parent container to add explicit CORS headers required by Copilot Studio
 app = FastAPI(title="Student Gradebook MCP Wrapper")
 
 app.add_middleware(
@@ -78,7 +78,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Mount FastMCP at both root / and /mcp to handle all client path formats
+# 3. Mount FastMCP at both /mcp and root / to accept all incoming path variations
 app.mount("/mcp", mcp_app)
 app.mount("/", mcp_app)
 
