@@ -77,6 +77,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+#Add explicit GET health probes inside server.py to satisfy ChatGPT & Copilot URL validator
+@app.get("/")
+@app.get("/mcp")
+async def health_check():
+    return {"status": "ok", "server": "Student Gradebook MCP Server", "mcp_endpoint": "/mcp"}
 
 # 3. Mount FastMCP at both /mcp and root / to accept all incoming path variations
 app.mount("/mcp", mcp_app)
