@@ -29,7 +29,7 @@ def execute_sql_query(query: str) -> str:
     clean_query = query.strip()
     if not clean_query.upper().startswith("SELECT"):
         return "Security Restriction: Only SELECT queries are allowed."
-    
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -48,9 +48,9 @@ def get_student_transcript(student_name: str) -> str:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    
+
     sql = """
-        SELECT 
+        SELECT
             s.full_name, c.course_code, c.course_name,
             g.numeric_score, gs.letter_grade, gs.gpa_points
         FROM students s
@@ -64,11 +64,23 @@ def get_student_transcript(student_name: str) -> str:
     conn.close()
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
-# 1. Generate FastMCP ASGI application with stateless HTTP enabled
-mcp_app = mcp.http_app(stateless_http=True)
+# 1. Generate FastMCP ASGI application.
+#    path="/" is important here: we are mounting this sub-app at "/mcp" on the
+#    parent FastAPI app below. If we left FastMCP's default internal path
+#    ("/mcp"), the final route would become "/mcp/mcp" and clients hitting
+#    "/mcp" would get a 307 redirect to "/mcp/" - some connectors (Copilot
+#    Studio included) don't reliably follow that redirect on POST requests.
+mcp_app = mcp.http_app(path="/", stateless_http=True)
 
-# 2. Wrap in FastAPI parent container to inject CORS middleware for enterprise connectors
-app = FastAPI(title="Student Gradebook MCP Wrapper")
+# 2. Wrap in FastAPI parent container to inject CORS middleware for enterprise
+#    connectors.
+#    CRITICAL FIX: FastMCP's http_app() relies on its own lifespan to start
+#    the StreamableHTTPSessionManager's background task group. When mounting
+#    into a parent ASGI app, that lifespan is NOT run automatically - you
+#    must pass it through explicitly, or every request to the MCP endpoint
+#    fails with: "RuntimeError: Task group is not initialized."
+#    This was the reason the previous version stopped working entirely.
+app = FastAPI(title="Student Gradebook MCP Wrapper", lifespan=mcp_app.lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,17 +88,19 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["mcp-session-id"],
 )
 
-# 3. Explicit HTTP GET health probes to satisfy platform URL scanners
+# 3. Explicit HTTP GET health probe for Render/platform URL scanners.
+#    NOTE: this is now the ONLY route registered at "/" - the mcp_app is
+#    mounted solely at "/mcp" below, so it no longer shadows this route or
+#    creates duplicate/competing route registrations.
 @app.get("/")
-@app.get("/mcp")
 async def health_check():
     return {"status": "ok", "server": "Student Gradebook MCP Server", "mcp_endpoint": "/mcp"}
 
-# 4. Mount FastMCP application routes
+# 4. Mount FastMCP application routes at a single, unambiguous path.
 app.mount("/mcp", mcp_app)
-app.mount("/", mcp_app)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
