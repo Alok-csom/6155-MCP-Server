@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from seed_db import init_database
 
-# Initialize database schema and records
+# Initialize SQLite database schema and seed data
 init_database()
 
 mcp = FastMCP("Student Gradebook MCP Server")
@@ -64,10 +64,10 @@ def get_student_transcript(student_name: str) -> str:
     conn.close()
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
-# 1. Generate FastMCP application supporting SSE (Server-Sent Events)
-mcp_sse_app = mcp.sse_app()
+# 1. Generate FastMCP ASGI application with stateless HTTP enabled
+mcp_app = mcp.http_app(stateless_http=True)
 
-# 2. Wrap in FastAPI parent container to inject CORS middleware
+# 2. Wrap in FastAPI parent container to inject CORS middleware for enterprise connectors
 app = FastAPI(title="Student Gradebook MCP Wrapper")
 
 app.add_middleware(
@@ -78,14 +78,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Explicit HTTP GET health probe for platform health check scanners
+# 3. Explicit HTTP GET health probes to satisfy platform URL scanners
 @app.get("/")
-@app.get("/health")
+@app.get("/mcp")
 async def health_check():
-    return {"status": "ok", "server": "Student Gradebook MCP Server", "sse_endpoint": "/sse"}
+    return {"status": "ok", "server": "Student Gradebook MCP Server", "mcp_endpoint": "/mcp"}
 
-# 4. Mount FastMCP SSE application handlers
-app.mount("/", mcp_sse_app)
+# 4. Mount FastMCP application routes
+app.mount("/mcp", mcp_app)
+app.mount("/", mcp_app)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
