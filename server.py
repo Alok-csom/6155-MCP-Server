@@ -64,10 +64,10 @@ def get_student_transcript(student_name: str) -> str:
     conn.close()
     return json.dumps(results) if results else f"No records found for '{student_name}'."
 
-# 1. Generate FastMCP application with stateless HTTP enabled
-mcp_app = mcp.http_app(stateless_http=True)
+# 1. Generate FastMCP application supporting SSE (Server-Sent Events)
+mcp_sse_app = mcp.sse_app()
 
-# 2. Wrap in FastAPI parent container to add explicit CORS headers required by Copilot Studio
+# 2. Wrap in FastAPI parent container to inject CORS middleware
 app = FastAPI(title="Student Gradebook MCP Wrapper")
 
 app.add_middleware(
@@ -77,15 +77,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-#Add explicit GET health probes inside server.py to satisfy ChatGPT & Copilot URL validator
-@app.get("/")
-@app.get("/mcp")
-async def health_check():
-    return {"status": "ok", "server": "Student Gradebook MCP Server", "mcp_endpoint": "/mcp"}
 
-# 3. Mount FastMCP at both /mcp and root / to accept all incoming path variations
-app.mount("/mcp", mcp_app)
-app.mount("/", mcp_app)
+# 3. Explicit HTTP GET health probe for platform health check scanners
+@app.get("/")
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "server": "Student Gradebook MCP Server", "sse_endpoint": "/sse"}
+
+# 4. Mount FastMCP SSE application handlers
+app.mount("/", mcp_sse_app)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
